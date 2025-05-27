@@ -1,49 +1,49 @@
 import streamlit as st
-import json
-import io
+from PIL import Image
 import os
-import contextlib
-import matplotlib.pyplot as plt
-import pandas as pd
-import concurrent.futures
-import threading
 
 # Configuración de la página
-st.set_page_config(page_title="Gráficas del Notebook", layout="wide")
-st.title("📊 Visualización de Gráficas desde `ParcialFinal.ipynb`")
+st.set_page_config(page_title="Visualización de Gráficas del Análisis", layout="wide")
+st.title("📊 Visualización del Análisis de Datos")
+st.markdown("A continuación se muestran las **27 gráficas** más relevantes del análisis realizado sobre los datos de la GEIH.")
 
-def exec_with_timeout(code, globals_, timeout=10):
-    """Ejecuta código con timeout, para evitar bloqueos largos."""
-    def target():
-        exec(code, globals_)
+# --- Mostrar las 27 gráficas ---
+st.header("🖼️ Gráficas")
+image_folder = "graficas"
+image_files = sorted([f for f in os.listdir(image_folder) if f.endswith((".png"))])[:27]
 
-    thread = threading.Thread(target=target)
-    thread.start()
-    thread.join(timeout)
-    if thread.is_alive():
-        raise TimeoutError("Timeout: ejecución de celda demasiado larga")
+cols = st.columns(3)
+for i, image_name in enumerate(image_files):
+    img_path = os.path.join(image_folder, image_name)
+    with cols[i % 3]:
+        st.image(Image.open(img_path), caption=f"Gráfica {i+1}")
 
-def run_notebook_cell(cell_source):
-    output_buffer = io.StringIO()
-    figures = []
+st.markdown("---")
 
-    exec_globals = {
-        'pd': pd,
-        'np': __import__('numpy'),
-        'plt': plt,
-        'st': st,
-        'sns': __import__('seaborn') if 'seaborn' in cell_source else None,
-    }
+# --- Sección de Código del Notebook ---
+st.header("🧠 Fragmentos de Código del Análisis")
 
-    try:
-        with contextlib.redirect_stdout(output_buffer), contextlib.redirect_stderr(output_buffer):
-            plt.close('all')
-            exec_with_timeout(cell_source, exec_globals, timeout=10)  # 10 segundos timeout
-            figures = [plt.figure(i) for i in plt.get_fignums()]
-    except TimeoutError as te:
-        output_buffer.write(f"\n⚠️ Timeout: {te}\n")
-    except Exception as e:
-        output_buffer.write(f"\n⚠️ Error al ejecutar una celda: {e}\n")
+codigo_ejemplos = [
+    """# Filtrado de datos por mes
+df_enero_dic = df_clean[df_clean['MES_NOMBRE'].isin(['Enero', 'Diciembre'])]""",
 
-    return figures
+    """# Agrupación para comparar ingresos por sexo y mes
+ingresos_comp = df_enero_dic.groupby(["MES_NOMBRE", "P3271"])["P7495"].mean().reset_index()""",
 
+    """# Gráfico de barras con seaborn
+plt.figure(figsize=(8,5))
+sns.barplot(data=ingresos_comp, x="MES_NOMBRE", y="P7495", hue="P3271")
+plt.title("Comparación Enero vs Diciembre")""",
+
+    """# Evolución mensual de la brecha salarial
+sns.lineplot(x=orden_meses, y=brechas, marker='o', linewidth=2.5, color='red')""",
+
+    """# Cálculo de brecha porcentual
+pivot_comp["Brecha (%)"] = ((pivot_comp["Enero"] - pivot_comp["Diciembre"]) / pivot_comp["Enero"]) * 100""",
+]
+
+for i, fragment in enumerate(codigo_ejemplos, 1):
+    st.subheader(f"Fragmento {i}")
+    st.code(fragment, language="python")
+
+st.success("Fin del informe visual.")
